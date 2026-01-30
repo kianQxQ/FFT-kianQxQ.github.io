@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fourier Transform: Signal Detective</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=JetBrains+Mono:wght@300;400&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-dark: #0a0e27;
+            --bg-medium: #141b3d;
+            --accent-cyan: #00f0ff;
+            --accent-magenta: #ff00aa;
+            --accent-yellow: #ffd700;
+            --text-primary: #e0e6ff;
+            --text-secondary: #8892b8;
+            --grid-color: rgba(0, 240, 255, 0.1);
+        }
+
+        body {
+            font-family: 'JetBrains Mono', monospace;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                repeating-linear-gradient(0deg, transparent, transparent 2px, var(--grid-color) 2px, var(--grid-color) 3px),
+                repeating-linear-gradient(90deg, transparent, transparent 2px, var(--grid-color) 2px, var(--grid-color) 3px);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 60px;
+            position: relative;
+        }
+
+        h1 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 4rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-magenta));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            animation: glow 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes glow {
+            from { filter: drop-shadow(0 0 20px rgba(0, 240, 255, 0.5)); }
+            to { filter: drop-shadow(0 0 40px rgba(255, 0, 170, 0.5)); }
+        }
+
+        .subtitle {
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            font-weight: 300;
+            letter-spacing: 2px;
+        }
+
+        .controls-panel {
+            background: var(--bg-medium);
+            border: 2px solid var(--accent-cyan);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 40px;
+            box-shadow: 0 0 30px rgba(0, 240, 255, 0.2);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .controls-panel::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            background: linear-gradient(45deg, var(--accent-cyan), var(--accent-magenta), var(--accent-yellow));
+            border-radius: 20px;
+            z-index: -1;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .controls-panel:hover::before {
+            opacity: 0.3;
+        }
+
+        .control-section {
+            margin-bottom: 30px;
+        }
+
+        .control-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .section-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.3rem;
+            color: var(--accent-cyan);
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section-title::before {
+            content: '◆';
+            color: var(--accent-magenta);
+        }
+
+        .signal-controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .signal-box {
+            background: rgba(0, 240, 255, 0.05);
+            border: 1px solid var(--accent-cyan);
+            border-radius: 12px;
+            padding: 20px;
+            transition: all 0.3s;
+        }
+
+        .signal-box:hover {
+            background: rgba(0, 240, 255, 0.1);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(0, 240, 255, 0.3);
+        }
+
+        .signal-label {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        input[type="number"], input[type="range"] {
+            background: var(--bg-dark);
+            border: 1px solid var(--accent-cyan);
+            border-radius: 6px;
+            padding: 8px 12px;
+            color: var(--text-primary);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+        }
+
+        input[type="number"] {
+            width: 80px;
+        }
+
+        input[type="range"] {
+            flex: 1;
+            height: 6px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: linear-gradient(to right, var(--accent-cyan), var(--accent-magenta));
+            outline: none;
+            border-radius: 3px;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            background: var(--accent-yellow);
+            cursor: pointer;
+            border-radius: 50%;
+            box-shadow: 0 0 10px rgba(255, 215, 0, 0.8);
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            background: var(--accent-yellow);
+            cursor: pointer;
+            border-radius: 50%;
+            box-shadow: 0 0 10px rgba(255, 215, 0, 0.8);
+        }
+
+        .value-display {
+            min-width: 60px;
+            text-align: right;
+            color: var(--accent-yellow);
+            font-weight: 400;
+        }
+
+        .add-signal-btn, .play-btn {
+            background: linear-gradient(135deg, var(--accent-magenta), var(--accent-cyan));
+            border: none;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.9rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(255, 0, 170, 0.4);
+        }
+
+        .add-signal-btn:hover, .play-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 25px rgba(255, 0, 170, 0.6);
+        }
+
+        .add-signal-btn:active, .play-btn:active {
+            transform: translateY(0);
+        }
+
+        .visualization {
+            display: grid;
+            gap: 30px;
+        }
+
+        .graph-container {
+            background: var(--bg-medium);
+            border: 2px solid var(--accent-cyan);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 0 30px rgba(0, 240, 255, 0.2);
+        }
+
+        .graph-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.4rem;
+            color: var(--accent-cyan);
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        canvas {
+            width: 100%;
+            height: 300px;
+            border-radius: 10px;
+            background: var(--bg-dark);
+        }
+
+        .animation-controls {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .noise-indicator {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .noise-value {
+            font-size: 1.5rem;
+            color: var(--accent-magenta);
+            font-weight: 700;
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2.5rem;
+            }
+
+            .signal-controls {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .info-banner {
+            background: linear-gradient(135deg, rgba(0, 240, 255, 0.1), rgba(255, 0, 170, 0.1));
+            border-left: 4px solid var(--accent-cyan);
+            padding: 20px;
+            margin-top: 30px;
+            border-radius: 10px;
+            font-size: 0.95rem;
+            line-height: 1.6;
+            color: var(--text-secondary);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Signal Detective</h1>
+            <p class="subtitle">Fourier Transform in Action</p>
+        </header>
+
+        <div class="controls-panel">
+            <div class="control-section">
+                <h2 class="section-title">Signal Components</h2>
+                <div id="signalControls" class="signal-controls"></div>
+                <button class="add-signal-btn" onclick="addSignal()">+ Add Signal</button>
+            </div>
+
+            <div class="control-section">
+                <h2 class="section-title">Noise Level</h2>
+                <div class="input-group">
+                    <input type="range" id="noiseSlider" min="0" max="2" step="0.05" value="0.5">
+                    <span class="value-display"><span id="noiseValue">0.50</span></span>
+                </div>
+            </div>
+
+            <div class="control-section">
+                <h2 class="section-title">Animation</h2>
+                <div class="animation-controls">
+                    <button class="play-btn" id="playBtn" onclick="toggleAnimation()">▶ Play Animation</button>
+                    <div class="noise-indicator">
+                        <span class="signal-label">Current Noise:</span>
+                        <span class="noise-value" id="animNoiseValue">0.00</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="visualization">
+            <div class="graph-container">
+                <h3 class="graph-title">Time Domain: The Noisy Signal</h3>
+                <canvas id="timeCanvas"></canvas>
+            </div>
+
+            <div class="graph-container">
+                <h3 class="graph-title">Frequency Domain: Hidden Patterns Revealed</h3>
+                <canvas id="freqCanvas"></canvas>
+            </div>
+        </div>
+
+        <div class="info-banner">
+            <strong>How it works:</strong> The Fourier Transform decomposes a complex signal into its frequency components. 
+            Even when noise obscures the time-domain signal, the frequency peaks remain visible, revealing the hidden structure. 
+            Try adjusting the frequencies, amplitudes, and noise level to see how robust this transformation is!
+        </div>
+    </div>
+
+    <script>
+        // Parameters
+        const fs = 2000;
+        const T = 1.0;
+        const samples = fs * T;
+        const t = Array.from({length: samples}, (_, i) => i / fs);
+
+        // Signal state
+        let signals = [
+            {frequency: 50, amplitude: 1.0},
+            {frequency: 120, amplitude: 0.6}
+        ];
+        let currentNoise = 0.5;
+        let animationId = null;
+        let isAnimating = false;
+        let animationFrame = 0;
+        const animationFrames = 40;
+
+        // Canvas setup
+        const timeCanvas = document.getElementById('timeCanvas');
+        const freqCanvas = document.getElementById('freqCanvas');
+        const timeCtx = timeCanvas.getContext('2d');
+        const freqCtx = freqCanvas.getContext('2d');
+
+        function resizeCanvases() {
+            timeCanvas.width = timeCanvas.offsetWidth;
+            timeCanvas.height = timeCanvas.offsetHeight;
+            freqCanvas.width = freqCanvas.offsetWidth;
+            freqCanvas.height = freqCanvas.offsetHeight;
+            updateVisualization();
+        }
+
+        window.addEventListener('resize', resizeCanvases);
+        resizeCanvases();
+
+        // Initialize controls
+        function initControls() {
+            const container = document.getElementById('signalControls');
+            container.innerHTML = '';
+            signals.forEach((sig, idx) => {
+                const box = document.createElement('div');
+                box.className = 'signal-box';
+                box.innerHTML = `
+                    <div class="signal-label">Signal ${idx + 1}</div>
+                    <div class="input-group">
+                        <span style="min-width: 80px; color: var(--text-secondary);">Freq (Hz):</span>
+                        <input type="number" value="${sig.frequency}" 
+                               onchange="updateSignal(${idx}, 'frequency', this.value)" min="1" max="500">
+                    </div>
+                    <div class="input-group">
+                        <span style="min-width: 80px; color: var(--text-secondary);">Amplitude:</span>
+                        <input type="number" value="${sig.amplitude}" step="0.1"
+                               onchange="updateSignal(${idx}, 'amplitude', this.value)" min="0" max="2">
+                    </div>
+                `;
+                container.appendChild(box);
+            });
+        }
+
+        function updateSignal(idx, property, value) {
+            signals[idx][property] = parseFloat(value);
+            updateVisualization();
+        }
+
+        function addSignal() {
+            signals.push({frequency: 80, amplitude: 0.5});
+            initControls();
+            updateVisualization();
+        }
+
+        // Noise slider
+        document.getElementById('noiseSlider').addEventListener('input', (e) => {
+            currentNoise = parseFloat(e.target.value);
+            document.getElementById('noiseValue').textContent = currentNoise.toFixed(2);
+            if (!isAnimating) {
+                updateVisualization();
+            }
+        });
+
+        // Generate signal
+        function generateSignal(noiseLevel) {
+            const signal = new Array(samples).fill(0);
+            
+            // Add signal components
+            for (let i = 0; i < samples; i++) {
+                for (const sig of signals) {
+                    signal[i] += sig.amplitude * Math.sin(2 * Math.PI * sig.frequency * t[i]);
+                }
+                // Add noise
+                signal[i] += noiseLevel * (Math.random() * 2 - 1);
+            }
+            
+            return signal;
+        }
+
+        // FFT (Cooley-Tukey algorithm)
+        function fft(signal) {
+            const n = signal.length;
+            if (n <= 1) return signal.map(x => ({re: x, im: 0}));
+            
+            const even = fft(signal.filter((_, i) => i % 2 === 0));
+            const odd = fft(signal.filter((_, i) => i % 2 === 1));
+            
+            const result = new Array(n);
+            for (let k = 0; k < n / 2; k++) {
+                const angle = -2 * Math.PI * k / n;
+                const t = {
+                    re: Math.cos(angle) * odd[k].re - Math.sin(angle) * odd[k].im,
+                    im: Math.cos(angle) * odd[k].im + Math.sin(angle) * odd[k].re
+                };
+                result[k] = {
+                    re: even[k].re + t.re,
+                    im: even[k].im + t.im
+                };
+                result[k + n/2] = {
+                    re: even[k].re - t.re,
+                    im: even[k].im - t.im
+                };
+            }
+            return result;
+        }
+
+        // Plot time domain
+        function plotTimeDomain(ctx, signal, noiseLevel) {
+            const width = ctx.canvas.width;
+            const height = ctx.canvas.height;
+            const padding = 50;
+            
+            ctx.clearRect(0, 0, width, height);
+            
+            // Draw grid
+            ctx.strokeStyle = 'rgba(0, 240, 255, 0.1)';
+            ctx.lineWidth = 1;
+            for (let i = 0; i <= 5; i++) {
+                const y = padding + (height - 2 * padding) * i / 5;
+                ctx.beginPath();
+                ctx.moveTo(padding, y);
+                ctx.lineTo(width - padding, y);
+                ctx.stroke();
+            }
+            
+            // Draw signal - only show first 400 samples (0.2 seconds)
+            const displaySamples = 400;
+            const xScale = (width - 2 * padding) / displaySamples;
+            const yScale = (height - 2 * padding) / 6;
+            const yCenter = height / 2;
+            
+            ctx.strokeStyle = '#00f0ff';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            for (let i = 0; i < displaySamples; i++) {
+                const x = padding + i * xScale;
+                const y = yCenter - signal[i] * yScale;
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+            
+            // Draw axes
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(padding, padding);
+            ctx.lineTo(padding, height - padding);
+            ctx.lineTo(width - padding, height - padding);
+            ctx.stroke();
+            
+            // Labels
+            ctx.fillStyle = '#8892b8';
+            ctx.font = '12px JetBrains Mono';
+            ctx.fillText('0', padding - 20, height - padding + 5);
+            ctx.fillText('0.2s', width - padding, height - padding + 20);
+            ctx.fillText('Noise: ' + noiseLevel.toFixed(2), padding, padding - 10);
+        }
+
+        // Plot frequency domain
+        function plotFrequencyDomain(ctx, fftResult) {
+            const width = ctx.canvas.width;
+            const height = ctx.canvas.height;
+            const padding = 50;
+            
+            ctx.clearRect(0, 0, width, height);
+            
+            // Calculate magnitudes
+            const n = fftResult.length;
+            const magnitudes = fftResult.map(c => Math.sqrt(c.re * c.re + c.im * c.im) * 2 / samples);
+            const freqs = Array.from({length: n}, (_, i) => i * fs / (2 * n));
+            
+            // Find max for scaling (up to 300 Hz)
+            const maxFreqIdx = Math.floor(300 * n / (fs / 2));
+            const maxMag = Math.max(...magnitudes.slice(0, maxFreqIdx));
+            
+            // Draw grid
+            ctx.strokeStyle = 'rgba(0, 240, 255, 0.1)';
+            ctx.lineWidth = 1;
+            for (let i = 0; i <= 5; i++) {
+                const y = padding + (height - 2 * padding) * i / 5;
+                ctx.beginPath();
+                ctx.moveTo(padding, y);
+                ctx.lineTo(width - padding, y);
+                ctx.stroke();
+            }
+            
+            // Draw frequency markers for true frequencies
+            signals.forEach(sig => {
+                const x = padding + (sig.frequency / 300) * (width - 2 * padding);
+                ctx.strokeStyle = 'rgba(255, 0, 170, 0.3)';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([5, 5]);
+                ctx.beginPath();
+                ctx.moveTo(x, padding);
+                ctx.lineTo(x, height - padding);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                
+                // Label
+                ctx.fillStyle = '#ff00aa';
+                ctx.font = 'bold 11px JetBrains Mono';
+                ctx.fillText(sig.frequency + 'Hz', x + 5, padding + 15);
+            });
+            
+            // Draw spectrum
+            const xScale = (width - 2 * padding) / 300;
+            const yScale = maxMag > 0 ? (height - 2 * padding) / (maxMag * 1.1) : 1;
+            
+            ctx.strokeStyle = '#ffd700';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            for (let i = 0; i < maxFreqIdx; i++) {
+                const freq = freqs[i];
+                if (freq > 300) break;
+                const x = padding + freq * xScale;
+                const y = height - padding - magnitudes[i] * yScale;
+                if (i === 0) ctx.moveTo(x, height - padding);
+                ctx.lineTo(x, y);
+            }
+            ctx.lineTo(padding + 300 * xScale, height - padding);
+            ctx.stroke();
+            
+            // Fill under curve
+            ctx.fillStyle = 'rgba(255, 215, 0, 0.2)';
+            ctx.fill();
+            
+            // Draw axes
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(padding, padding);
+            ctx.lineTo(padding, height - padding);
+            ctx.lineTo(width - padding, height - padding);
+            ctx.stroke();
+            
+            // Labels
+            ctx.fillStyle = '#8892b8';
+            ctx.font = '12px JetBrains Mono';
+            ctx.fillText('0 Hz', padding - 10, height - padding + 20);
+            ctx.fillText('300 Hz', width - padding - 30, height - padding + 20);
+        }
+
+        // Update visualization
+        function updateVisualization() {
+            const signal = generateSignal(currentNoise);
+            
+            // Pad to power of 2 for FFT
+            const paddedLength = Math.pow(2, Math.ceil(Math.log2(samples)));
+            const paddedSignal = [...signal, ...new Array(paddedLength - samples).fill(0)];
+            
+            const fftResult = fft(paddedSignal);
+            
+            plotTimeDomain(timeCtx, signal, currentNoise);
+            plotFrequencyDomain(freqCtx, fftResult.slice(0, fftResult.length / 2));
+        }
+
+        // Animation
+        function toggleAnimation() {
+            const btn = document.getElementById('playBtn');
+            if (isAnimating) {
+                cancelAnimationFrame(animationId);
+                isAnimating = false;
+                btn.textContent = '▶ Play Animation';
+                btn.style.background = 'linear-gradient(135deg, var(--accent-magenta), var(--accent-cyan))';
+            } else {
+                isAnimating = true;
+                animationFrame = 0;
+                btn.textContent = '⏸ Pause';
+                btn.style.background = 'linear-gradient(135deg, #ff4444, #ff8800)';
+                animate();
+            }
+        }
+
+        function animate() {
+            if (!isAnimating) return;
+            
+            const noiseLevel = (animationFrame / animationFrames) * 1.2;
+            document.getElementById('animNoiseValue').textContent = noiseLevel.toFixed(2);
+            
+            const signal = generateSignal(noiseLevel);
+            const paddedLength = Math.pow(2, Math.ceil(Math.log2(samples)));
+            const paddedSignal = [...signal, ...new Array(paddedLength - samples).fill(0)];
+            const fftResult = fft(paddedSignal);
+            
+            plotTimeDomain(timeCtx, signal, noiseLevel);
+            plotFrequencyDomain(freqCtx, fftResult.slice(0, fftResult.length / 2));
+            
+            animationFrame = (animationFrame + 1) % animationFrames;
+            
+            setTimeout(() => {
+                animationId = requestAnimationFrame(animate);
+            }, 150);
+        }
+
+        // Initialize
+        initControls();
+        updateVisualization();
+    </script>
+</body>
+</html>
